@@ -11,4 +11,4 @@ A simple and cool music player and YouTube downloader.
 ## Installation  
 1. Clone the repository:  
    ```bash
-   git clone https://github.com/yourusername/TuneTube.git
+   git clone https://github.com/Ariyan-Sk/TuneTube.git
