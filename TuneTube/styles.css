@@ -1,0 +1,11 @@
+QPushButton#playButton {
+    border-radius: 40px;  /* Round shape */
+    border: none;
+    background-color: #1DB954;  /* Spotify Green */
+    min-width: 80px;
+    min-height: 80px;
+}
+
+QPushButton#playButton:hover {
+    background-color: #1ed760;  /* Lighter green on hover */
+}
