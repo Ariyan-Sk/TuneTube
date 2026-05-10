@@ -1,10 +1,14 @@
 import sys
 import os
 import pygame
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QListWidget, QLabel, QStackedWidget, QPushButton
-from PyQt5.QtCore import QSize, QFile, QTextStream
+import yt_dlp
+import ssl
+from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QListWidget, QLabel, QStackedWidget, QPushButton, QSlider, QLineEdit, QProgressBar
+from PyQt5.QtCore import QSize, QFile, QTextStream, Qt, QTimer
 from PyQt5.QtGui import QIcon
 
+
+ssl._create_default_https_context = ssl._create_unverified_context
 
 class MusicPlayerApp(QWidget):
     def __init__(self):
@@ -41,8 +45,24 @@ class MusicPlayerApp(QWidget):
         self.download_page = QWidget()
         download_layout = QVBoxLayout()
         download_layout.addWidget(QLabel("📥 YouTube Downloader Interface"))
+        
+        # Input field for YouTube URL
+        self.url_input = QLineEdit()
+        self.url_input.setPlaceholderText("Enter YouTube URL here...")
+        download_layout.addWidget(self.url_input)
+        
+        # Download button
+        self.download_button = QPushButton("Download")
+        self.download_button.clicked.connect(self.download_song)
+        download_layout.addWidget(self.download_button)
+        
+        # Progress Bar
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setValue(0)
+        download_layout.addWidget(self.progress_bar)
+        
         self.download_page.setLayout(download_layout)
-
+        
         # Add pages to the stack
         self.pages.addWidget(self.music_page)
         self.pages.addWidget(self.download_page)
@@ -57,14 +77,45 @@ class MusicPlayerApp(QWidget):
         # Persistent Bottom Control Bar
         self.control_bar = QHBoxLayout()
 
+        # Play/Pause Button
         self.play_button = QPushButton()
         self.play_button.setObjectName("playButton")
         self.play_button.setIcon(QIcon("images/play.png"))
         self.play_button.setIconSize(QSize(64, 64))
         self.play_button.setFixedSize(80, 80)
         self.play_button.clicked.connect(self.toggle_play_pause)
-
         self.control_bar.addWidget(self.play_button)
+
+        # Volume Control Layout
+        self.volume_layout = QVBoxLayout()
+        self.volume_layout.setSpacing(2)
+
+        # Volume Slider (Initially Hidden)
+        self.volume_slider = QSlider(Qt.Vertical)
+        self.volume_slider.setRange(0, 100)
+        self.volume_slider.setValue(50)
+        self.volume_slider.setFixedSize(50, 120)
+        self.volume_slider.setStyleSheet("border: 2px solid #ddd; border-radius: 5px; background: white;")
+        self.volume_slider.hide()
+        self.volume_slider.valueChanged.connect(self.set_volume)
+
+        # Volume Button
+        self.volume_button = QPushButton()
+        self.volume_button.setIcon(QIcon("images/volume.png"))
+        self.volume_button.setIconSize(QSize(40, 40))
+        self.volume_button.setFixedSize(50, 50)
+        self.volume_button.setStyleSheet("border: none;")
+        self.volume_button.clicked.connect(self.toggle_volume_slider)
+
+        # Timer for hiding the slider
+        self.hide_timer = QTimer()
+        self.hide_timer.setSingleShot(True)
+        self.hide_timer.timeout.connect(self.volume_slider.hide)
+
+        # Add slider above the button
+        self.volume_layout.addWidget(self.volume_slider)
+        self.volume_layout.addWidget(self.volume_button)
+        self.control_bar.addLayout(self.volume_layout)
 
         # Add layouts to the main layout
         main_layout.addLayout(content_layout)
@@ -84,12 +135,30 @@ class MusicPlayerApp(QWidget):
 
 #----------------------------------------------------------------------------------------------------------#
 
-    def load_styles(self):
-        """ Load external stylesheet """
-        file = QFile("styles.css")
-        if file.open(QFile.ReadOnly | QFile.Text):
-            stream = QTextStream(file)
-            self.setStyleSheet(stream.readAll())
+    def toggle_play_pause(self):
+        """ Toggle play/pause and change the button icon """
+        if pygame.mixer.music.get_busy():
+            pygame.mixer.music.pause()
+            self.play_button.setIcon(QIcon("images/play.png"))
+        else:
+            pygame.mixer.music.unpause()
+            self.play_button.setIcon(QIcon("images/pause.png"))
+
+#----------------------------------------------------------------------------------------------------------#
+
+    def toggle_volume_slider(self):
+        """ Show/Hide volume slider above the button """
+        if self.volume_slider.isVisible():
+            self.volume_slider.hide()
+        else:
+            self.volume_slider.show()
+            self.hide_timer.start(2000)  # Hide after 2 seconds
+
+#----------------------------------------------------------------------------------------------------------#
+
+    def set_volume(self, value):
+        """ Set volume based on slider value """
+        pygame.mixer.music.set_volume(value / 100.0)
 
 #----------------------------------------------------------------------------------------------------------#
 
@@ -111,7 +180,7 @@ class MusicPlayerApp(QWidget):
             return  # No song selected
         
         song_path = os.path.join(self.download_dir, selected_song.text())
-
+        
         if self.current_song == song_path:
             pygame.mixer.music.unpause()  # Resume if already paused
         else:
@@ -121,22 +190,48 @@ class MusicPlayerApp(QWidget):
 
 #----------------------------------------------------------------------------------------------------------#
 
-    def toggle_play_pause(self):
-        """ Toggle play/pause and change the button icon """
-        if pygame.mixer.music.get_busy():  
-            pygame.mixer.music.pause()
-            self.play_button.setIcon(QIcon("images/play.png"))  # Switch to play icon
-        else:
-            if not self.current_song:
-                # If no song is playing, start playing the first song in the list
-                if self.song_list.count() > 0:
-                    self.song_list.setCurrentRow(0)  # Select first song
-                    self.play_song()  # Play the selected song
-            else:
-                pygame.mixer.music.unpause()
-                self.play_button.setIcon(QIcon("images/pause.png"))  # Switch to pause icon
+    def download_song(self):
+        """ Download a song from YouTube and update the song list """
+        url = self.url_input.text().strip()
+        if not url:
+            self.download_status.setText("Please enter a valid YouTube URL.")
+            return
+
+        self.download_status.setText("Downloading...")
+        
+        os.makedirs("downloads", exist_ok=True)  # Ensure downloads folder exists
+
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'postprocessors': [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',
+                'preferredquality': '192',
+            }],
+            'outtmpl': 'downloads/%(title)s.%(ext)s',  # Save in 'downloads' folder
+            'ffmpeg_location': r'C:\Users\ariyan.habibseikh\Downloads\ffmpeg-master-latest-win64-gpl-shared\bin'  # Adjust if needed
+        }
+
+        try:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                ydl.download([url])
+            self.download_status.setText("Download Complete!")
+            self.load_songs()  # Refresh song list
+        except Exception as e:
+            print("Error:", str(e))  # Print in console
+            self.download_status.setText(f"Error: {str(e)}")
+
 
 #----------------------------------------------------------------------------------------------------------#
+
+    def update_progress(self, d):
+        """ Update progress bar based on download status """
+        if d['status'] == 'downloading':
+            percent = d['_percent_str'].strip().replace('%', '')
+            self.progress_bar.setValue(int(float(percent)))
+        elif d['status'] == 'finished':
+            self.progress_bar.setValue(100)
+
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
