@@ -68,36 +68,40 @@ def download_song(url, update_progress):
 
     ydl_opts = {
 
-        # Best audio
         'format': 'bestaudio/best',
 
-        # Prevent playlist downloads
         'noplaylist': True,
 
-        # Save file location
         'outtmpl': os.path.join(
             DOWNLOAD_DIR,
             '%(title)s.%(ext)s'
         ),
 
-        # FFmpeg location
         'ffmpeg_location': FFMPEG_PATH,
 
-        # Progress callback
         'progress_hooks': [
             update_progress
         ],
 
-        # Convert to MP3
         'postprocessors': [{
             'key': 'FFmpegExtractAudio',
             'preferredcodec': 'mp3',
             'preferredquality': '192',
         }],
 
-        # Cleaner console
+        'extractor_args': {
+            'youtube': {
+                'player_client': ['android']
+            }
+        },
+
         'quiet': False,
         'no_warnings': False,
+
+        'overwrites': True,
+
+        'retries': 10,
+        'fragment_retries': 10,
     }
 
     # ----------------------------------------------

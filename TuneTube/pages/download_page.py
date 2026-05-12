@@ -10,7 +10,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import pyqtSignal
 
 from downloader import download_song as yt_download
-
+from workers.download_worker import DownloadWorker
 
 # ==========================================================
 # DOWNLOAD PAGE
@@ -102,16 +102,40 @@ class DownloadPage(QWidget):
         url = self.url_input.text().strip()
 
         if not url:
-            self.download_status.setText("Enter a valid URL")
+
+            self.download_status.setText(
+                "Enter a valid URL"
+            )
+
             return
 
-        self.download_status.setText("Downloading...")
         self.progress_bar.setValue(0)
 
-        success = yt_download(url, self.update_progress)
+        self.download_button.setEnabled(False)
+
+        # Create worker thread
+        self.worker = DownloadWorker(url)
+
+        # Connect signals
+        self.worker.progress.connect(
+            self.progress_bar.setValue
+        )
+
+        self.worker.status.connect(
+            self.download_status.setText
+        )
+
+        self.worker.finished.connect(
+            self.download_finished
+        )
+
+        # Start thread
+        self.worker.start()
+
+    
+    def download_finished(self, success):
+
+        self.download_button.setEnabled(True)
 
         if success:
-            self.download_status.setText("Download Complete!")
             self.download_complete.emit()
-        else:
-            self.download_status.setText("Download Failed!")
