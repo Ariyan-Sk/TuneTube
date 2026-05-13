@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+
+  /* ─────────────────────────────────────────
+     RESET & BASE
+  ───────────────────────────────────────── */
+
+  *, *::before, *::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  html, body {
+    width: 100%;
+    height: 100%;
+    background: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    font-family: 'Courier New', monospace;
+  }
+
+  /* ─────────────────────────────────────────
+     CSS VARIABLES  (controlled via JS)
+  ───────────────────────────────────────── */
+
+  :root {
+    --c-outer:       #6B5700;
+    --c-inner:       #9A7D00;
+    --c-text-ring:   #C4A000;
+    --c-accent:      #FFD700;
+
+    --spd-outer:     28s;
+    --spd-inner:     14s;
+    --spd-mask-h:    3.2s;
+    --spd-mask-v:    7.5s;
+    --spd-glow:      1.2s;
+  }
+
+  /* ─────────────────────────────────────────
+     KEYFRAMES
+  ───────────────────────────────────────── */
+
+  @keyframes rotCW {
+    from { transform: translate(-50%, -50%) rotate(0deg);    }
+    to   { transform: translate(-50%, -50%) rotate(360deg);  }
+  }
+  @keyframes rotCCW {
+    from { transform: translate(-50%, -50%) rotate(0deg);    }
+    to   { transform: translate(-50%, -50%) rotate(-360deg); }
+  }
+  @keyframes pulseText {
+    0%   { color: rgba(255,255,255,0.4); }
+    100% { color: var(--c-accent);        }
+  }
+  @keyframes glowRing {
+    0%   { box-shadow: 0 0  6px 1px var(--c-accent); }
+    100% { box-shadow: 0 0 22px 6px var(--c-accent); }
+  }
+
+  /* ─────────────────────────────────────────
+     OUTER RING  (.e-loadholder)
+  ───────────────────────────────────────── */
+
+  .e-loadholder {
+    position: absolute;
+    top:  50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+
+    width:  240px;
+    height: 240px;
+
+    border:        5px solid var(--c-outer);
+    border-radius: 50%;
+
+    animation: glowRing var(--spd-glow) alternate ease-in-out infinite;
+
+    transition:
+      border-color 0.6s ease,
+      box-shadow   0.6s ease;
+  }
+
+  /* rotating mask — outer ring */
+  .e-loadholder::after {
+    content: " ";
+    display: block;
+    position: absolute;
+    top:  50%;
+    left: 50%;
+
+    width:  100px;
+    height: 200%;
+
+    background:       #fffdfd;
+    transform-origin: center;
+    z-index:          0;
+
+    animation: rotCCW var(--spd-outer) linear infinite;
+  }
+
+  /* ─────────────────────────────────────────
+     MIDDLE RING  (.m-loader)
+  ───────────────────────────────────────── */
+
+  .m-loader {
+    position: absolute;
+    top:  50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+
+    width:  200px;
+    height: 200px;
+
+    border:        5px solid var(--c-inner);
+    border-radius: 50%;
+    z-index:       20;
+
+    transition: border-color 0.6s ease;
+  }
+
+  /* rotating mask — middle ring */
+  .m-loader::after {
+    content: " ";
+    display: block;
+    position: absolute;
+    top:  50%;
+    left: 50%;
+
+    width:  100px;
+    height: 106%;
+
+    background:       #ffffff;
+    transform-origin: center;
+    z-index:          -1;
+
+    animation: rotCW var(--spd-inner) linear infinite;
+  }
+
+  /* ─────────────────────────────────────────
+     INNER RING + TEXT  (.e-text)
+  ───────────────────────────────────────── */
+
+  .e-text {
+    position:  absolute;
+    top:  50%;
+    left: 50%;
+    transform: translate(-51%, -50%);
+
+    display:    block;
+    width:      140px;
+    height:     140px;
+    line-height: 130px;       /* vertically centres single-line text */
+
+    text-align:     center;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-size:      13px;
+    font-weight:    700;
+
+    border:        5px solid var(--c-text-ring);
+    border-radius: 50%;
+    z-index:       20;
+
+    animation:
+      pulseText var(--spd-glow) alternate linear infinite;
+
+    transition: border-color 0.6s ease;
+  }
+
+  /* horizontal rotating mask */
+  .e-text::before {
+    content: " ";
+    display: block;
+    position: absolute;
+    top:  50%;
+    left: 50%;
+
+    width:  110%;
+    height: 40px;
+
+    background:       #ffffff;
+    transform-origin: center;
+    z-index:          -1;
+
+    animation: rotCCW var(--spd-mask-h) linear infinite;
+  }
+
+  /* vertical rotating mask */
+  .e-text::after {
+    content: " ";
+    display: block;
+    position: absolute;
+    top:  50%;
+    left: 50%;
+
+    width:  40px;
+    height: 110%;
+
+    background:       #ffffff;
+    transform-origin: center;
+    z-index:          -1;
+
+    animation: rotCW var(--spd-mask-v) linear infinite;
+  }
+
+</style>
+</head>
+<body>
+
+<div class="e-loadholder">
+  <div class="m-loader">
+    <span class="e-text" id="statusText"></span>
+  </div>
+</div>
+
+<script>
+
+  // ─────────────────────────────────────────
+  // STATE MACHINE
+  // Called from Python via  page().runJavaScript("setState('...')")
+  // States: 'idle' | 'loading' | 'complete' | 'failed'
+  // ─────────────────────────────────────────
+
+  const STATES = {
+
+    idle: {
+      outer:     '#87CEEB',
+      inner:     '#ADD8E6',
+      textRing:  '#4169E1',
+      accent:    '#4169E1',
+      spdOuter:  '28s',
+      spdInner:  '14s',
+      spdMaskH:  '3.2s',
+      spdMaskV:  '7.5s',
+      spdGlow:   '1.2s',
+      label:     ''
+    },
+
+    loading: {
+      outer:     '#6B5700',
+      inner:     '#9A7D00',
+      textRing:  '#C4A000',
+      accent:    '#FFD700',
+      // ← faster while loading
+      spdOuter:  '10s',
+      spdInner:  '5s',
+      spdMaskH:  '1.4s',
+      spdMaskV:  '3.2s',
+      spdGlow:   '0.55s',
+      label:     'Loading'
+    },
+
+    complete: {
+      outer:     '#145A32',
+      inner:     '#1E8449',
+      textRing:  '#27AE60',
+      accent:    '#2ECC71',
+      spdOuter:  '28s',
+      spdInner:  '14s',
+      spdMaskH:  '3.2s',
+      spdMaskV:  '7.5s',
+      spdGlow:   '1.2s',
+      label:     'Done'
+    },
+
+    failed: {
+      outer:     '#7B241C',
+      inner:     '#B03A2E',
+      textRing:  '#E74C3C',
+      accent:    '#FF6B6B',
+      spdOuter:  '28s',
+      spdInner:  '14s',
+      spdMaskH:  '3.2s',
+      spdMaskV:  '7.5s',
+      spdGlow:   '1.2s',
+      label:     'Failed'
+    }
+  };
+
+  function setState(name) {
+    const s    = STATES[name];
+    const root = document.documentElement;
+    const text = document.getElementById('statusText');
+
+    if (!s) return;
+
+    root.style.setProperty('--c-outer',     s.outer);
+    root.style.setProperty('--c-inner',     s.inner);
+    root.style.setProperty('--c-text-ring', s.textRing);
+    root.style.setProperty('--c-accent',    s.accent);
+    root.style.setProperty('--spd-outer',   s.spdOuter);
+    root.style.setProperty('--spd-inner',   s.spdInner);
+    root.style.setProperty('--spd-mask-h',  s.spdMaskH);
+    root.style.setProperty('--spd-mask-v',  s.spdMaskV);
+    root.style.setProperty('--spd-glow',    s.spdGlow);
+
+    text.textContent = s.label;
+  }
+
+  // Boot into idle
+  setState('idle');
+
+</script>
+</body>
+</html>

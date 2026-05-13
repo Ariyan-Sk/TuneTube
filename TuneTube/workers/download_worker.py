@@ -48,8 +48,9 @@ class DownloadWorker(QThread):
                     self.last_percent = percent
 
                     print(percent)
-
+                    
                     self.progress.emit(percent)
+                    QThread.msleep(15)
 
         elif d['status'] == 'finished':
 
@@ -69,6 +70,7 @@ class DownloadWorker(QThread):
         )
 
         if success:
+            self.status.emit("Converting to MP3...")
             self.status.emit("Download Complete!")
         else:
             self.status.emit("Download Failed!")

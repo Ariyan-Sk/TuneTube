@@ -1,0 +1,5 @@
+/* ── Page background ──────────────────────────────────── */
+
+MusicPlayerApp {
+    background-color: #000000;
+}

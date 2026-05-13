@@ -13,6 +13,18 @@ from pages.music_page import MusicPage
 from pages.download_page import DownloadPage
 from components.control_bar import ControlBar
 
+# ==========================================================
+# HELPER FUNCTION
+# ==========================================================
+
+def _load_stylesheet(filename: str) -> str:
+
+    path = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        filename
+    )
+    with open(path, "r") as f:
+        return f.read()
 
 # ==========================================================
 # MAIN WINDOW
@@ -44,6 +56,7 @@ class MusicPlayerApp(QWidget):
         )
 
         self.initUI()
+        self.setStyleSheet(_load_stylesheet("main_window.qss"))
 
 # ==========================================================
 # UI

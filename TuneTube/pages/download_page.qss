@@ -1,0 +1,53 @@
+/* ==========================================================
+   DOWNLOAD PAGE — styles.qss
+   ========================================================== */
+
+
+
+/* ── Status label ─────────────────────────────────────── */
+
+QLabel#downloadStatus {
+    color:      #777777;
+    font-size:  12px;
+    background: transparent;
+}
+
+/* ── URL input ────────────────────────────────────────── */
+
+QLineEdit#urlInput {
+    background-color : #2a2a2a;
+    color            : #e0e0e0;
+    border           : 1px solid #3a3a3a;
+    border-radius    : 6px;
+    padding          : 0 10px;
+    font-size        : 13px;
+}
+
+QLineEdit#urlInput:focus {
+    border: 1px solid #cc6600;
+}
+
+/* ── Download button ──────────────────────────────────── */
+
+QPushButton#downloadButton {
+    background-color : #cc5500;
+    color            : #ffffff;
+    border           : none;
+    border-radius    : 6px;
+    padding          : 0 20px;
+    font-size        : 13px;
+    font-weight      : bold;
+}
+
+QPushButton#downloadButton:hover {
+    background-color : #e06010;
+}
+
+QPushButton#downloadButton:pressed {
+    background-color : #aa4400;
+}
+
+QPushButton#downloadButton:disabled {
+    background-color : #5a2a00;
+    color            : #666666;
+}
